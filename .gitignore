@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Secrets — FIGMA_TOKEN lives here, never commit it
+.env
+.env.*
+
+# Logs
+npm-debug.log*
+
+# OS noise
+Thumbs.db
+desktop.ini
+.DS_Store
