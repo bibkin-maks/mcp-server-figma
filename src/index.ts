@@ -56,6 +56,25 @@ function jsonResult(data: unknown) {
 
 const server = new McpServer({ name: "figma-rest-mcp", version: "0.1.0" });
 
+// ── Read file / node JSON ───────────────────────────────────────────────────
+server.tool(
+  "get_file",
+  "Fetch a Figma file's document tree and metadata. Accepts a file key or a figma.com URL. " +
+    "Use `depth` to limit how deep the node tree is traversed (keeps responses small).",
+  {
+    file: z.string().describe("Figma file key or figma.com/design/... URL"),
+    depth: z.number().int().min(1).max(10).optional().describe("Tree traversal depth (default: full)"),
+    geometry: z.boolean().optional().describe("Include vector geometry paths (default false)"),
+  },
+  async ({ file, depth, geometry }) => {
+    const params = new URLSearchParams();
+    if (depth) params.set("depth", String(depth));
+    if (geometry) params.set("geometry", "paths");
+    const qs = params.toString();
+    return jsonResult(await figma(`/files/${fileKey(file)}${qs ? `?${qs}` : ""}`));
+  },
+);
+
 // ── whoami (sanity check) ───────────────────────────────────────────────────
 server.tool(
   "whoami",
