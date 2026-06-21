@@ -150,6 +150,16 @@ server.tool(
   },
 );
 
+server.tool(
+  "get_styles",
+  "List published styles (colors, text, effects, grids) in a Figma file.",
+  { file: z.string().describe("Figma file key or URL") },
+  async ({ file }) => {
+    const data = await figma(`/files/${fileKey(file)}/styles`);
+    return jsonResult(data?.meta?.styles ?? []);
+  },
+);
+
 // ── whoami (sanity check) ───────────────────────────────────────────────────
 server.tool(
   "whoami",
