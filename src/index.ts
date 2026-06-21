@@ -2,6 +2,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { mkdir, writeFile } from "node:fs/promises";
+import { resolve, join } from "node:path";
 
 const API = "https://api.figma.com/v1";
 const TOKEN = process.env.FIGMA_TOKEN ?? process.env.FIGMA_PERSONAL_ACCESS_TOKEN;
@@ -89,6 +91,44 @@ server.tool(
     params.set("ids", ids.map(nodeId).join(","));
     if (depth) params.set("depth", String(depth));
     return jsonResult(await figma(`/files/${fileKey(file)}/nodes?${params.toString()}`));
+  },
+);
+
+// ── Export images ───────────────────────────────────────────────────────────
+server.tool(
+  "export_image",
+  "Render Figma nodes to PNG/SVG/JPG/PDF. Returns the temporary Figma CDN URLs and, " +
+    "if `saveDir` is given, downloads each image to disk and returns the file paths.",
+  {
+    file: z.string().describe("Figma file key or URL"),
+    ids: z.array(z.string()).min(1).describe("Node ids or node URLs to render"),
+    format: z.enum(["png", "svg", "jpg", "pdf"]).default("png"),
+    scale: z.number().min(0.01).max(4).default(2).describe("Raster scale, 0.01–4 (png/jpg only)"),
+    saveDir: z.string().optional().describe("Absolute dir to download rendered files into"),
+  },
+  async ({ file, ids, format, scale, saveDir }) => {
+    const key = fileKey(file);
+    const nodeIds = ids.map(nodeId);
+    const params = new URLSearchParams();
+    params.set("ids", nodeIds.join(","));
+    params.set("format", format);
+    if (format === "png" || format === "jpg") params.set("scale", String(scale));
+    const data = await figma(`/images/${key}?${params.toString()}`);
+    const images: Record<string, string | null> = data.images ?? {};
+
+    const saved: Record<string, string> = {};
+    if (saveDir) {
+      const dir = resolve(saveDir);
+      await mkdir(dir, { recursive: true });
+      for (const [id, url] of Object.entries(images)) {
+        if (!url) continue;
+        const buf = Buffer.from(await (await fetch(url)).arrayBuffer());
+        const path = join(dir, `${id.replace(/[:/]/g, "-")}.${format}`);
+        await writeFile(path, buf);
+        saved[id] = path;
+      }
+    }
+    return jsonResult({ images, ...(saveDir ? { saved } : {}) });
   },
 );
 
