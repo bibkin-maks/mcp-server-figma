@@ -132,6 +132,24 @@ server.tool(
   },
 );
 
+// ── Components & styles ─────────────────────────────────────────────────────
+server.tool(
+  "get_components",
+  "List published components and component sets in a Figma file.",
+  { file: z.string().describe("Figma file key or URL") },
+  async ({ file }) => {
+    const key = fileKey(file);
+    const [components, sets] = await Promise.all([
+      figma(`/files/${key}/components`),
+      figma(`/files/${key}/component_sets`),
+    ]);
+    return jsonResult({
+      components: components?.meta?.components ?? [],
+      component_sets: sets?.meta?.component_sets ?? [],
+    });
+  },
+);
+
 // ── whoami (sanity check) ───────────────────────────────────────────────────
 server.tool(
   "whoami",
