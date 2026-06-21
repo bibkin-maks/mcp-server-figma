@@ -75,6 +75,23 @@ server.tool(
   },
 );
 
+server.tool(
+  "get_file_nodes",
+  "Fetch specific nodes (frames/components/etc.) from a Figma file by node id. " +
+    "Far cheaper than get_file when you only need a few nodes.",
+  {
+    file: z.string().describe("Figma file key or URL"),
+    ids: z.array(z.string()).min(1).describe("Node ids (e.g. ['1:2']) or full node URLs"),
+    depth: z.number().int().min(1).max(10).optional(),
+  },
+  async ({ file, ids, depth }) => {
+    const params = new URLSearchParams();
+    params.set("ids", ids.map(nodeId).join(","));
+    if (depth) params.set("depth", String(depth));
+    return jsonResult(await figma(`/files/${fileKey(file)}/nodes?${params.toString()}`));
+  },
+);
+
 // ── whoami (sanity check) ───────────────────────────────────────────────────
 server.tool(
   "whoami",
