@@ -4,6 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
+import { sendCommand } from "./bridgeClient.js";
 
 const API = "https://api.figma.com/v1";
 const TOKEN = process.env.FIGMA_TOKEN ?? process.env.FIGMA_PERSONAL_ACCESS_TOKEN;
@@ -196,6 +197,138 @@ server.tool(
   "Verify the configured token by fetching the authenticated Figma user.",
   {},
   async () => jsonResult(await figma(`/me`)),
+);
+
+// ════════════════════════════════════════════════════════════════════════════
+// WRITE / DESIGN tools — these talk to the Figma plugin over the bridge relay.
+// They require: (1) `npm run bridge` running, (2) the "Code MCP Bridge" plugin
+// open in Figma and connected to the same channel.
+// ════════════════════════════════════════════════════════════════════════════
+
+const Color = z
+  .union([
+    z.string().describe("hex color, e.g. #4F46E5 or #4F46E5FF"),
+    z.object({ r: z.number(), g: z.number(), b: z.number(), a: z.number().optional() }),
+  ])
+  .describe("Color as hex string or {r,g,b,a} with channels 0–1");
+
+server.tool(
+  "bridge_status",
+  "Check whether the Figma plugin is connected and responding over the bridge.",
+  {},
+  async () => {
+    try {
+      await sendCommand("ping", {}, 3000);
+      return jsonResult({ connected: true });
+    } catch (e: any) {
+      return jsonResult({ connected: false, reason: e.message });
+    }
+  },
+);
+
+server.tool(
+  "get_document_info",
+  "Get the current Figma document name, current page, and selection summary (live, via plugin).",
+  {},
+  async () => jsonResult(await sendCommand("get_document_info")),
+);
+
+server.tool(
+  "get_selection",
+  "Get the currently selected nodes in the open Figma file (via plugin).",
+  {},
+  async () => jsonResult(await sendCommand("get_selection")),
+);
+
+server.tool(
+  "create_frame",
+  "Create a frame in the current Figma page.",
+  {
+    x: z.number().default(0),
+    y: z.number().default(0),
+    width: z.number().default(400),
+    height: z.number().default(300),
+    name: z.string().optional(),
+    fillColor: Color.optional(),
+    parentId: z.string().optional().describe("Append into this node id instead of the page"),
+  },
+  async (a) => jsonResult(await sendCommand("create_frame", a)),
+);
+
+server.tool(
+  "create_rectangle",
+  "Create a rectangle in the current Figma page.",
+  {
+    x: z.number().default(0),
+    y: z.number().default(0),
+    width: z.number().default(100),
+    height: z.number().default(100),
+    name: z.string().optional(),
+    fillColor: Color.optional(),
+    cornerRadius: z.number().optional(),
+    parentId: z.string().optional(),
+  },
+  async (a) => jsonResult(await sendCommand("create_rectangle", a)),
+);
+
+server.tool(
+  "create_ellipse",
+  "Create an ellipse in the current Figma page.",
+  {
+    x: z.number().default(0),
+    y: z.number().default(0),
+    width: z.number().default(100),
+    height: z.number().default(100),
+    name: z.string().optional(),
+    fillColor: Color.optional(),
+    parentId: z.string().optional(),
+  },
+  async (a) => jsonResult(await sendCommand("create_ellipse", a)),
+);
+
+server.tool(
+  "create_text",
+  "Create a text node. Inter Regular is loaded by default; pass fontFamily/fontStyle for others.",
+  {
+    x: z.number().default(0),
+    y: z.number().default(0),
+    text: z.string(),
+    fontSize: z.number().default(16),
+    fontColor: Color.optional(),
+    fontFamily: z.string().optional(),
+    fontStyle: z.string().optional(),
+    name: z.string().optional(),
+    parentId: z.string().optional(),
+  },
+  async (a) => jsonResult(await sendCommand("create_text", a)),
+);
+
+server.tool(
+  "set_fill_color",
+  "Set the solid fill color of an existing node.",
+  { nodeId: z.string(), color: Color },
+  async (a) => jsonResult(await sendCommand("set_fill_color", a)),
+);
+
+server.tool(
+  "set_stroke_color",
+  "Set the stroke color (and optional weight) of an existing node.",
+  { nodeId: z.string(), color: Color, weight: z.number().optional() },
+  async (a) => jsonResult(await sendCommand("set_stroke_color", a)),
+);
+
+server.tool(
+  "set_corner_radius",
+  "Set the corner radius of a node that supports it.",
+  { nodeId: z.string(), radius: z.number() },
+  async (a) => jsonResult(await sendCommand("set_corner_radius", a)),
+);
+
+server.tool(
+  "set_text",
+  "Replace the characters of an existing text node.",
+  { nodeId: z.string(), text: z.string() },
+  async (a) => jsonResult(await sendCommand("set_text", a)),
 );
 
 const transport = new StdioServerTransport();
