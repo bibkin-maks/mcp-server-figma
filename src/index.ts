@@ -160,6 +160,36 @@ server.tool(
   },
 );
 
+// ── Comments ────────────────────────────────────────────────────────────────
+server.tool(
+  "get_comments",
+  "Read all comments on a Figma file.",
+  { file: z.string().describe("Figma file key or URL") },
+  async ({ file }) => {
+    const data = await figma(`/files/${fileKey(file)}/comments`);
+    return jsonResult(data?.comments ?? []);
+  },
+);
+
+server.tool(
+  "post_comment",
+  "Post a comment on a Figma file. Optionally reply to an existing comment.",
+  {
+    file: z.string().describe("Figma file key or URL"),
+    message: z.string().min(1),
+    comment_id: z.string().optional().describe("Parent comment id to reply to"),
+  },
+  async ({ file, message, comment_id }) => {
+    const body: Record<string, unknown> = { message };
+    if (comment_id) body.comment_id = comment_id;
+    const data = await figma(`/files/${fileKey(file)}/comments`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return jsonResult(data);
+  },
+);
+
 // ── whoami (sanity check) ───────────────────────────────────────────────────
 server.tool(
   "whoami",
