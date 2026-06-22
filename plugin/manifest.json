@@ -1,0 +1,12 @@
+{
+  "name": "Code MCP Bridge",
+  "id": "code-mcp-bridge-local",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["*"],
+    "reasoning": "Connects to a local MCP bridge relay over WebSocket to receive design commands."
+  }
+}
