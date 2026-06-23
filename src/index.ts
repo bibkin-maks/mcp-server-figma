@@ -331,6 +331,48 @@ server.tool(
   async (a) => jsonResult(await sendCommand("set_text", a)),
 );
 
+server.tool(
+  "move_node",
+  "Move a node to an absolute x/y in its parent.",
+  { nodeId: z.string(), x: z.number(), y: z.number() },
+  async (a) => jsonResult(await sendCommand("move_node", a)),
+);
+
+server.tool(
+  "resize_node",
+  "Resize a node.",
+  { nodeId: z.string(), width: z.number(), height: z.number() },
+  async (a) => jsonResult(await sendCommand("resize_node", a)),
+);
+
+server.tool(
+  "clone_node",
+  "Clone a node, optionally placing the clone at a new x/y.",
+  { nodeId: z.string(), x: z.number().optional(), y: z.number().optional() },
+  async (a) => jsonResult(await sendCommand("clone_node", a)),
+);
+
+server.tool(
+  "append_child",
+  "Move/append a node into a parent node (e.g. into a frame).",
+  { parentId: z.string(), childId: z.string() },
+  async (a) => jsonResult(await sendCommand("append_child", a)),
+);
+
+server.tool(
+  "delete_node",
+  "Delete a node by id.",
+  { nodeId: z.string() },
+  async (a) => jsonResult(await sendCommand("delete_node", a)),
+);
+
+server.tool(
+  "run_command",
+  "Escape hatch: send an arbitrary command + params to the Figma plugin.",
+  { command: z.string(), params: z.record(z.any()).optional() },
+  async (a) => jsonResult(await sendCommand(a.command, a.params ?? {})),
+);
+
 const transport = new StdioServerTransport();
 await server.connect(transport);
 console.error("[figma-rest-mcp] running on stdio");
