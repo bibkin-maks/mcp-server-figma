@@ -387,7 +387,8 @@ server.tool(
   "run_command",
   "Escape hatch: send an arbitrary command + params to the Figma plugin.",
   { command: z.string(), params: z.record(z.any()).optional() },
-  async (a) => jsonResult(await sendCommand(a.command, a.params ?? {})),
+  // Long timeout: batches load fonts and create dozens of nodes in one call.
+  async (a) => jsonResult(await sendCommand(a.command, a.params ?? {}, 180000)),
 );
 
 const transport = new StdioServerTransport();
