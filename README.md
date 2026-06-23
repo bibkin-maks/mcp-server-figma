@@ -19,6 +19,45 @@ API rate limits.
 
 All tools accept either a raw **file key** or a full **figma.com URL**.
 
+### Write / design tools (require the plugin bridge — see below)
+
+| Tool | Purpose |
+|------|---------|
+| `bridge_status` | Check the plugin is connected |
+| `get_document_info`, `get_selection` | Live state from the open file |
+| `create_frame` / `create_rectangle` / `create_ellipse` / `create_text` | Create nodes |
+| `set_fill_color` / `set_stroke_color` / `set_corner_radius` / `set_text` | Edit properties |
+| `move_node` / `resize_node` / `clone_node` / `append_child` / `delete_node` | Manipulate nodes |
+| `run_command` | Escape hatch — send any `{command, params}` to the plugin |
+
+These work because the REST API **cannot** write designs — so creating/editing goes
+through a Figma plugin running in the desktop app, over a local WebSocket relay.
+
+## The plugin bridge (for creating / editing designs)
+
+Three pieces talk to each other: **MCP server** ⇄ **relay** ⇄ **Figma plugin**.
+
+1. **Start the relay** (keep it running in a terminal):
+   ```
+   npm run bridge
+   ```
+   Listens on `ws://localhost:3055`. Change with `FIGMA_BRIDGE_PORT`.
+
+2. **Import the plugin into Figma desktop** (one time):
+   - Figma → menu → *Plugins → Development → Import plugin from manifest…*
+   - Select `figma-mcp/plugin/manifest.json`.
+
+3. **Run the plugin** in the file you want to edit:
+   - *Plugins → Development → Code MCP Bridge*.
+   - It auto-connects to `ws://localhost:3055`, channel `default`. The status box turns
+     green when connected. (Use a custom channel by setting `FIGMA_BRIDGE_CHANNEL` on the
+     MCP server and typing the same channel in the plugin window.)
+
+4. In Claude, run **`bridge_status`** to confirm, then e.g.
+   *"create a 200×80 indigo rounded rectangle"*.
+
+The relay holds no state and needs no token — only the REST tools use `FIGMA_TOKEN`.
+
 ## Setup
 
 1. Create a personal access token: https://www.figma.com/developers/api#access-tokens
