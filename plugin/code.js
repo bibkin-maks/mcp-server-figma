@@ -2,7 +2,7 @@
 // thread receives {command, params} from the UI, runs it against the Figma API,
 // and posts the result back to the UI, which relays it over the WebSocket.
 
-figma.showUI(__html__, { width: 340, height: 300 });
+figma.showUI(__html__, { width: 340, height: 460 });
 
 figma.ui.onmessage = async (msg) => {
   if (msg.type !== "execute") return;

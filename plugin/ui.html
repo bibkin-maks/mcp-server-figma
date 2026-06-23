@@ -2,66 +2,462 @@
 <html>
 <head>
   <meta charset="utf-8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
   <style>
-    body { font: 12px -apple-system, Segoe UI, sans-serif; margin: 12px; color: #222; }
-    label { display: block; margin: 8px 0 2px; font-weight: 600; }
-    input { width: 100%; box-sizing: border-box; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
-    button { margin-top: 10px; padding: 6px 12px; border: 0; border-radius: 4px; background: #18a0fb; color: #fff; cursor: pointer; }
-    #status { margin-top: 10px; padding: 6px; border-radius: 4px; background: #eee; font-weight: 600; }
-    .ok { background: #d6f5dd !important; }
-    .err { background: #fbd6d6 !important; }
-    pre { margin-top: 8px; max-height: 90px; overflow: auto; background: #f7f7f7; padding: 6px; border-radius: 4px; font-size: 11px; }
+    :root {
+      --paper: #FBFAF7;
+      --ink: #22242A;
+      --ink-soft: #2A2C33;
+      --muted: #8A8478;
+      --muted-faint: #B3ADA1;
+      --hairline: #E9E5DC;
+      --bed: #F3F0E8;
+      --copper: #B0561E;
+      --green: #237B4B;
+      --green-soft: #5E8C74;
+      --amber: #B08514;
+      --red: #BE3D2E;
+      --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+      --sans: "Inter", -apple-system, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    html, body { height: 100%; }
+    body {
+      font: 11px var(--sans);
+      background: var(--paper);
+      color: var(--ink);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    button {
+      font: inherit;
+      background: none;
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+      color: var(--copper);
+    }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; }
+
+    /* ── header ─────────────────────────────────────────────── */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 16px 20px 0;
+    }
+    .wordmark { font: 600 11px var(--mono); letter-spacing: 0.02em; }
+    .version { font: 400 10px var(--mono); color: var(--muted); }
+
+    /* ── the wire ───────────────────────────────────────────── */
+    .wire-row {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 20px 20px 0;
+    }
+    .wire-end { font: 500 9px var(--mono); color: var(--muted); flex: none; }
+    body[data-state="reconnecting"] .wire-end { color: var(--muted-faint); }
+    .wire {
+      position: relative;
+      flex: 1;
+      height: 8px;
+    }
+    .wire .line, .wire .line-l, .wire .line-r {
+      position: absolute;
+      top: 3px;
+      height: 2px;
+      border-radius: 1px;
+      background: var(--copper);
+    }
+    .wire .line { left: 0; right: 0; }
+    .wire .line-l { left: 0; width: calc(50% - 14px); background: #C9C4BA; display: none; }
+    .wire .line-r { right: 0; width: calc(50% - 14px); background: #C9C4BA; display: none; }
+    .wire .break-dot {
+      position: absolute;
+      top: 1px; left: 50%;
+      width: 6px; height: 6px;
+      margin-left: -3px;
+      border-radius: 50%;
+      background: var(--amber);
+      display: none;
+    }
+    .wire .pulse {
+      position: absolute;
+      top: 0; left: 0;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--copper);
+      opacity: 0;
+    }
+    body[data-state="live"] .wire .pulse.travel { animation: travel 0.6s ease-out; }
+    @keyframes travel {
+      0%   { opacity: 1; left: 0; }
+      100% { opacity: 1; left: calc(100% - 8px); }
+    }
+    body[data-state="reconnecting"] .wire .line { display: none; }
+    body[data-state="reconnecting"] .wire .line-l,
+    body[data-state="reconnecting"] .wire .line-r,
+    body[data-state="reconnecting"] .wire .break-dot { display: block; }
+    body[data-state="connecting"] .wire .line { background: #C9C4BA; }
+    @media (prefers-reduced-motion: reduce) {
+      body[data-state="live"] .wire .pulse.travel { animation: none; }
+    }
+
+    /* ── status row ─────────────────────────────────────────── */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 20px 14px;
+    }
+    .lamp { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+    #status { font: 400 10px var(--mono); }
+    body[data-state="live"]         .lamp { background: var(--green); }
+    body[data-state="live"]         #status { color: var(--green); }
+    body[data-state="connecting"]   .lamp { background: var(--muted); }
+    body[data-state="connecting"]   #status { color: var(--muted); }
+    body[data-state="reconnecting"] .lamp { background: var(--amber); }
+    body[data-state="reconnecting"] #status { color: var(--amber); }
+    #retry {
+      margin-left: auto;
+      font: 500 10px var(--sans);
+      display: none;
+    }
+    body[data-state="reconnecting"] #retry { display: block; }
+
+    .divider { border-top: 1px solid var(--hairline); flex: none; }
+
+    /* ── traffic ────────────────────────────────────────────── */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 12px 12px 12px;
+    }
+    .traffic-head {
+      display: flex;
+      justify-content: space-between;
+      padding: 0 8px 8px;
+      font: 500 9px var(--mono);
+      color: var(--muted);
+    }
+    #counter { font-weight: 400; }
+    #log {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--bed);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font: 400 10px var(--mono);
+    }
+    #log .row {
+      display: flex;
+      line-height: 22px;
+      white-space: nowrap;
+    }
+    #log .row .t { color: var(--muted); }
+    #log .row .cmd { color: var(--ink-soft); margin-left: 1ch; overflow: hidden; text-overflow: ellipsis; }
+    #log .row .st { margin-left: auto; padding-left: 1ch; }
+    #log .row .st.ok { color: var(--green-soft); }
+    #log .row .st.err { color: var(--red); font-weight: 500; }
+    #log .row .st.pending { color: var(--muted-faint); }
+    #log .detail {
+      line-height: 16px;
+      padding-left: 9ch;
+      color: var(--red);
+      font-size: 9px;
+      white-space: normal;
+      word-break: break-word;
+    }
+    #log .system { line-height: 22px; color: var(--amber); font-weight: 500; }
+    #log .system.good { color: var(--green-soft); }
+    #log .hint { line-height: 16px; padding-left: 2ch; color: var(--muted); font-size: 9px; }
+    #log .empty { color: var(--muted); line-height: 22px; }
+
+    /* ── settings ───────────────────────────────────────────── */
+    #settings { display: none; padding: 12px 20px 4px; }
+    body.settings-open #settings { display: block; }
+    body.settings-open main { flex: 0 0 96px; }
+    #settings label {
+      display: block;
+      font: 500 10px var(--sans);
+      color: var(--ink-soft);
+      margin: 10px 0 6px;
+    }
+    #settings input {
+      width: 100%;
+      padding: 8px 12px;
+      font: 400 10px var(--mono);
+      color: var(--ink-soft);
+      background: #FFFFFF;
+      border: 1px solid #DDD8CD;
+      border-radius: 6px;
+    }
+    #settings .hint-line { margin-top: 10px; font: 400 9px var(--sans); color: var(--muted); }
+    #save {
+      width: 100%;
+      margin-top: 12px;
+      padding: 9px 0;
+      background: var(--copper);
+      color: #fff;
+      font: 500 11px var(--sans);
+      border-radius: 6px;
+      text-align: center;
+    }
+
+    /* ── footer ─────────────────────────────────────────────── */
+    footer {
+      flex: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--hairline);
+      padding: 14px 20px;
+    }
+    #toggle { font: 500 11px var(--sans); color: var(--ink-soft); }
+    body.settings-open #toggle { color: var(--copper); }
+    #endpoint { font: 400 9px var(--mono); color: var(--muted); }
   </style>
 </head>
-<body>
-  <label for="url">Relay URL</label>
-  <input id="url" value="ws://localhost:3055" />
-  <label for="channel">Channel</label>
-  <input id="channel" value="default" />
-  <button id="connect">Connect</button>
-  <div id="status">Disconnected</div>
-  <pre id="log"></pre>
+<body data-state="connecting">
+  <header>
+    <span class="wordmark">MCP BRIDGE</span>
+    <span class="version">v0.1</span>
+  </header>
+
+  <div class="wire-row">
+    <span class="wire-end">CLAUDE</span>
+    <div class="wire">
+      <div class="line"></div>
+      <div class="line-l"></div><div class="line-r"></div>
+      <div class="break-dot"></div>
+      <div class="pulse" id="pulse"></div>
+    </div>
+    <span class="wire-end">FIGMA</span>
+  </div>
+
+  <div class="status-row">
+    <span class="lamp"></span>
+    <span id="status">Connecting…</span>
+    <button id="retry">Retry now</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <section id="settings">
+    <label for="url">Relay URL</label>
+    <input id="url" value="ws://localhost:3055" spellcheck="false" />
+    <label for="channel">Channel</label>
+    <input id="channel" value="default" spellcheck="false" />
+    <div class="hint-line">Match FIGMA_BRIDGE_CHANNEL on the MCP server.</div>
+    <button id="save">Save &amp; reconnect</button>
+  </section>
+
+  <main>
+    <div class="traffic-head">
+      <span>TRAFFIC</span>
+      <span id="counter"></span>
+    </div>
+    <div id="log">
+      <div class="empty">No traffic yet. Ask Claude to create something.</div>
+    </div>
+  </main>
+
+  <footer>
+    <button id="toggle">Settings</button>
+    <span id="endpoint"></span>
+  </footer>
 
   <script>
     var ws = null;
+    var okCount = 0, errCount = 0;
+    var attempts = 0;
+    var retryTimer = null, countdownTimer = null;
+    var everConnected = false;
+    var MAX_ROWS = 200;
+    var rowById = {};
+
     function $(id) { return document.getElementById(id); }
-    function log(m) { var l = $("log"); l.textContent = (m + "\n" + l.textContent).slice(0, 1500); }
-    function setStatus(s, cls) { var el = $("status"); el.textContent = s; el.className = cls || ""; }
+    function now() {
+      var d = new Date();
+      function p(n) { return (n < 10 ? "0" : "") + n; }
+      return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+    }
+    function setState(state, text) {
+      document.body.setAttribute("data-state", state);
+      $("status").textContent = text;
+    }
+    function updateCounter() {
+      $("counter").textContent = okCount + " ok · " + errCount + " err";
+    }
+    function updateEndpoint() {
+      $("endpoint").textContent = $("url").value.trim() + " · " + ($("channel").value.trim() || "default");
+    }
+
+    // ── log ──────────────────────────────────────────────────
+    function trimLog() {
+      var log = $("log");
+      while (log.children.length > MAX_ROWS) log.removeChild(log.firstChild);
+    }
+    function clearEmpty() {
+      var e = $("log").querySelector(".empty");
+      if (e) e.remove();
+    }
+    function addRow(id, command) {
+      clearEmpty();
+      var row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML =
+        '<span class="t">' + now() + '</span>' +
+        '<span class="cmd"></span>' +
+        '<span class="st pending">…</span>';
+      row.querySelector(".cmd").textContent = command;
+      $("log").appendChild(row);
+      rowById[id] = row;
+      trimLog();
+      row.scrollIntoView({ block: "nearest" });
+    }
+    function resolveRow(id, error) {
+      var row = rowById[id];
+      delete rowById[id];
+      if (error) {
+        errCount++;
+        if (row) {
+          var st = row.querySelector(".st");
+          st.textContent = "err";
+          st.className = "st err";
+          var detail = document.createElement("div");
+          detail.className = "detail";
+          detail.textContent = "└ " + error;
+          row.after(detail);
+        }
+      } else {
+        okCount++;
+        if (row) {
+          var st = row.querySelector(".st");
+          st.textContent = "ok";
+          st.className = "st ok";
+        }
+      }
+      updateCounter();
+      trimLog();
+    }
+    function addSystem(text, cls, hint) {
+      clearEmpty();
+      var el = document.createElement("div");
+      el.className = "system" + (cls ? " " + cls : "");
+      el.textContent = "· " + text + " " + now();
+      $("log").appendChild(el);
+      if (hint) {
+        var h = document.createElement("div");
+        h.className = "hint";
+        h.textContent = "└ " + hint;
+        $("log").appendChild(h);
+      }
+      trimLog();
+      el.scrollIntoView({ block: "nearest" });
+    }
+    function firePulse() {
+      var p = $("pulse");
+      p.classList.remove("travel");
+      void p.offsetWidth; /* restart the animation */
+      p.classList.add("travel");
+    }
+
+    // ── connection ───────────────────────────────────────────
+    function cancelRetry() {
+      if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+      if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+    }
 
     function connect() {
+      cancelRetry();
       var url = $("url").value.trim();
       var channel = $("channel").value.trim() || "default";
-      if (ws) { try { ws.close(); } catch (e) {} }
-      setStatus("Connecting...");
-      ws = new WebSocket(url);
+      updateEndpoint();
+      if (ws) {
+        ws.onclose = null; /* silence the handler for a deliberate reconnect */
+        try { ws.close(); } catch (e) {}
+        ws = null;
+      }
+      setState("connecting", "Connecting…");
+      try {
+        ws = new WebSocket(url);
+      } catch (e) {
+        scheduleRetry();
+        return;
+      }
 
       ws.onopen = function () { ws.send(JSON.stringify({ type: "join", channel: channel })); };
 
       ws.onmessage = function (ev) {
         var msg;
         try { msg = JSON.parse(ev.data); } catch (e) { return; }
-        if (msg.type === "joined") { setStatus("Connected · channel: " + msg.channel, "ok"); return; }
+        if (msg.type === "joined") {
+          attempts = 0;
+          if (everConnected) addSystem("reconnected", "good");
+          everConnected = true;
+          setState("live", "Live · channel " + msg.channel);
+          return;
+        }
         if (msg.type === "broadcast" && msg.payload && msg.payload.kind === "request") {
           var pl = msg.payload;
-          log("> " + pl.command);
+          firePulse();
+          addRow(pl.id, pl.command);
           parent.postMessage({ pluginMessage: { type: "execute", id: pl.id, command: pl.command, params: pl.params } }, "*");
         }
       };
 
-      ws.onclose = function () { setStatus("Disconnected", "err"); };
-      ws.onerror = function () { setStatus("Error — is the relay running? (npm run bridge)", "err"); };
+      ws.onclose = function () {
+        if (everConnected) addSystem("relay connection lost", "", "if this persists: npm run bridge");
+        scheduleRetry();
+      };
     }
 
+    function scheduleRetry() {
+      cancelRetry();
+      attempts++;
+      var delay = Math.min(2000 * Math.pow(1.5, attempts - 1), 15000);
+      var until = Date.now() + delay;
+      function tick() {
+        var s = Math.max(0, Math.ceil((until - Date.now()) / 1000));
+        setState("reconnecting", "Reconnecting · retry in " + s + "s");
+      }
+      tick();
+      countdownTimer = setInterval(tick, 500);
+      retryTimer = setTimeout(connect, delay);
+    }
+
+    // ── results from the plugin main thread ──────────────────
     window.onmessage = function (event) {
       var msg = event.data.pluginMessage;
       if (!msg || msg.type !== "result") return;
-      log("< " + (msg.error ? "ERR " + msg.error : "ok"));
+      resolveRow(msg.id, msg.error);
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: "broadcast", payload: { kind: "response", id: msg.id, result: msg.result, error: msg.error } }));
       }
     };
 
-    $("connect").onclick = connect;
+    // ── controls ─────────────────────────────────────────────
+    $("retry").onclick = connect;
+    $("save").onclick = function () {
+      document.body.classList.remove("settings-open");
+      $("toggle").textContent = "Settings";
+      attempts = 0;
+      connect();
+    };
+    $("toggle").onclick = function () {
+      var open = document.body.classList.toggle("settings-open");
+      $("toggle").textContent = open ? "Done" : "Settings";
+    };
+
+    updateCounter();
+    updateEndpoint();
     connect();
   </script>
 </body>
