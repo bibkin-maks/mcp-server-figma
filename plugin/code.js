@@ -196,6 +196,23 @@ async function handle(command, p) {
       return { deleted: p.nodeId };
     }
 
+    case "batch": {
+      // Run many commands in one round trip. Later steps can reference nodes
+      // created by earlier ones: any param string "$3.id" becomes results[3].id.
+      const results = [];
+      for (const step of p.steps || []) {
+        const params = JSON.parse(JSON.stringify(step.params || {}), (k, v) => {
+          if (typeof v === "string") {
+            const m = v.match(/^\$(\d+)\.id$/);
+            if (m && results[+m[1]]) return results[+m[1]].id;
+          }
+          return v;
+        });
+        results.push(await handle(step.command, params));
+      }
+      return { count: results.length, results };
+    }
+
     default:
       throw new Error("Unknown command: " + command);
   }
