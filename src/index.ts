@@ -3,8 +3,25 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { mkdir, writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { sendCommand } from "./bridgeClient.js";
+
+// Load .env from the project root (one level up from src/ or dist/), so the
+// server finds FIGMA_TOKEN regardless of the cwd it was launched from.
+// Real environment variables take precedence over the file.
+try {
+  const envFile = readFileSync(fileURLToPath(new URL("../.env", import.meta.url)), "utf8");
+  for (const line of envFile.split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (!m || line.trimStart().startsWith("#")) continue;
+    const value = m[2].replace(/^(["'])(.*)\1$/, "$2");
+    process.env[m[1]] ??= value;
+  }
+} catch {
+  // no .env file — fine, rely on the environment
+}
 
 const API = "https://api.figma.com/v1";
 const TOKEN = process.env.FIGMA_TOKEN ?? process.env.FIGMA_PERSONAL_ACCESS_TOKEN;
