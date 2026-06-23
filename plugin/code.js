@@ -196,6 +196,19 @@ async function handle(command, p) {
       return { deleted: p.nodeId };
     }
 
+    case "find_nodes": {
+      // Look up nodes by exact name (optionally filtered by type) so a lost
+      // batch response can be recovered without guessing ids.
+      const matches = figma.currentPage
+        .findAll((n) => n.name === p.name && (!p.type || n.type === p.type))
+        .slice(0, 20);
+      return matches.map(summarize);
+    }
+
+    case "get_page_children": {
+      return figma.currentPage.children.map(summarize);
+    }
+
     case "batch": {
       // Run many commands in one round trip. Later steps can reference nodes
       // created by earlier ones: any param string "$3.id" becomes results[3].id.
