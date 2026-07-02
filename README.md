@@ -6,6 +6,13 @@ Figma plugin — because the REST API can read everything but can't edit anythin
 
 No paid MCP calls, no cloud middleman. Your token, your machine, your files.
 
+--------------------------------------------------------------------------------
+
+<img width="1240" height="580" alt="CLAUDE MCP BRIDGE" src="https://github.com/user-attachments/assets/d72a4b40-c61e-440f-a286-7ac26afb44cd" />
+
+--------------------------------------------------------------------------------
+
+
 ## How it fits together
 
 ```
